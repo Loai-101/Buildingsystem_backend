@@ -10,6 +10,8 @@ const ticketSchema = new mongoose.Schema({
   description: { type: String, default: '' },
 });
 
+ticketSchema.index({ createdDate: -1 });
+
 ticketSchema.pre('save', function (next) {
   if (!this.createdDate) {
     this.createdDate = new Date().toISOString().slice(0, 10);

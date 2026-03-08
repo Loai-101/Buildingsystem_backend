@@ -23,16 +23,19 @@ const accountsRoutes = require('./routes/accounts');
 const app = express();
 
 // Allow frontend origins (Vite dev, production, or proxy)
+const fromEnv = (v) => (v ? v.split(',').map((u) => u.trim().replace(/\/$/, '')).filter(Boolean) : []);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:3000',
-  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((u) => u.trim()).filter(Boolean) : []),
+  ...fromEnv(process.env.ALLOWED_ORIGINS),
+  ...fromEnv(process.env.FRONTEND_URL),
 ];
+const normalizeOrigin = (o) => (o ? o.replace(/\/$/, '') : o);
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes(normalizeOrigin(origin))) return cb(null, true);
     return cb(null, true); // allow same-origin when proxied (no origin)
   },
   credentials: true,

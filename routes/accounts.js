@@ -29,6 +29,10 @@ router.get('/', async (req, res) => {
     const m = month != null && month !== '' ? parseInt(String(month), 10) : null;
     if (Number.isInteger(y)) query.year = y;
     if (Number.isInteger(m)) query.month = m;
+    if (!Number.isInteger(y) && !Number.isInteger(m)) {
+      const currentYear = new Date().getFullYear();
+      query.year = { $gte: currentYear - 2 };
+    }
     res.set('Cache-Control', 'no-store');
     const list = await AccountRecord.find(query).sort({ date: 1 }).lean();
     res.json(list.map(toRecord));

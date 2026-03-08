@@ -14,4 +14,7 @@ const accountRecordSchema = new mongoose.Schema({
   attachment: { type: String, default: null },
 }, { collection: 'accountrecords' });
 
+accountRecordSchema.index({ year: 1, month: 1 });
+accountRecordSchema.index({ date: 1 });
+
 module.exports = mongoose.model('AccountRecord', accountRecordSchema);
