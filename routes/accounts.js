@@ -1,8 +1,19 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const AccountRecord = require('../models/AccountRecord');
 const ExtraYear = require('../models/ExtraYear');
 const { authMiddleware, requireAdmin } = require('../middleware/auth');
+
+/** Find record by id (custom string) or by _id (MongoDB ObjectId) for backwards compatibility. */
+async function findRecordById(id) {
+  const byCustomId = await AccountRecord.findOne({ id });
+  if (byCustomId) return byCustomId;
+  if (id && id.length === 24 && /^[a-fA-F0-9]{24}$/.test(id) && mongoose.Types.ObjectId.isValid(id)) {
+    return AccountRecord.findById(id);
+  }
+  return null;
+}
 
 function toRecord(r) {
   const d = r.toObject ? r.toObject() : r;
@@ -159,7 +170,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body || {};
-    const record = await AccountRecord.findOne({ id });
+    const record = await findRecordById(id);
     if (!record) return res.status(404).json({ error: 'Record not found' });
     if (updates.date !== undefined) record.date = String(updates.date).slice(0, 10);
     if (updates.type !== undefined) record.type = updates.type;
@@ -180,8 +191,9 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await AccountRecord.findOneAndDelete({ id });
-    if (!deleted) return res.status(404).json({ error: 'Record not found' });
+    const record = await findRecordById(id);
+    if (!record) return res.status(404).json({ error: 'Record not found' });
+    await AccountRecord.deleteOne({ _id: record._id });
     res.json({ id });
   } catch (err) {
     console.error(err);
