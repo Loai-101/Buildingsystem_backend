@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
     const proposals = await Proposal.find({}).sort({ createdAt: -1 }).lean();
     const result = [];
 
+    const currentUserId = req.userId || req.username;
     for (const p of proposals) {
       const votes = await Vote.find({ proposalId: p._id }).lean();
       const approveCount = votes.filter((v) => v.vote === 'approve').length;
@@ -28,6 +29,9 @@ router.get('/', async (req, res) => {
         approveCount,
         rejectCount,
       };
+
+      const userVote = votes.find((v) => v.userId === currentUserId);
+      item.userVote = userVote ? userVote.vote : null;
 
       if (isAdmin) {
         item.votes = votes.map((v) => ({
@@ -59,6 +63,9 @@ router.get('/:id', async (req, res) => {
     const approveCount = votes.filter((v) => v.vote === 'approve').length;
     const rejectCount = votes.filter((v) => v.vote === 'reject').length;
 
+    const currentUserId = req.userId || req.username;
+    const userVoteDoc = votes.find((v) => v.userId === currentUserId);
+
     const item = {
       id: proposal._id.toString(),
       title: proposal.title,
@@ -68,6 +75,7 @@ router.get('/:id', async (req, res) => {
       status: proposal.status || 'open',
       approveCount,
       rejectCount,
+      userVote: userVoteDoc ? userVoteDoc.vote : null,
     };
 
     if (isAdmin) {
@@ -115,7 +123,7 @@ router.post('/', requireAdmin, async (req, res) => {
   }
 });
 
-/** Vote on proposal (approve or reject). One vote per user per proposal (upsert). */
+/** Vote on proposal (approve or reject). One vote per user per proposal; cannot vote again. */
 router.post('/:id/vote', async (req, res) => {
   try {
     const proposalId = req.params.id;
@@ -126,16 +134,27 @@ router.post('/:id/vote', async (req, res) => {
     if (proposal.status === 'closed') return res.status(400).json({ error: 'Voting is closed for this proposal' });
 
     const userId = req.userId || req.username;
-    await Vote.findOneAndUpdate(
-      { proposalId, userId },
-      { proposalId, userId, username: req.username || 'User', vote },
-      { upsert: true, new: true }
-    );
+    const existing = await Vote.findOne({ proposalId, userId });
+    if (existing) {
+      return res.status(409).json({
+        error: 'You have already voted on this proposal.',
+        code: 'ALREADY_VOTED',
+        userVote: existing.vote,
+      });
+    }
+
+    await Vote.create({
+      proposalId,
+      userId,
+      username: req.username || 'User',
+      vote,
+    });
 
     const votes = await Vote.find({ proposalId }).lean();
     res.json({
       approveCount: votes.filter((v) => v.vote === 'approve').length,
       rejectCount: votes.filter((v) => v.vote === 'reject').length,
+      userVote: vote,
     });
   } catch (err) {
     console.error('POST /api/proposals/:id/vote error:', err);
