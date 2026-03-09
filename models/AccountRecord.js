@@ -15,6 +15,7 @@ const accountRecordSchema = new mongoose.Schema({
 }, { collection: 'accountrecords' });
 
 accountRecordSchema.index({ year: 1, month: 1 });
+accountRecordSchema.index({ year: 1, date: 1 }); // fast for year view: find by year, sort by date
 accountRecordSchema.index({ date: 1 });
 
 module.exports = mongoose.model('AccountRecord', accountRecordSchema);
