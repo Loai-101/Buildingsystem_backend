@@ -20,6 +20,7 @@ const usersRoutes = require('./routes/users');
 const bookingsRoutes = require('./routes/bookings');
 const maintenanceRoutes = require('./routes/maintenance');
 const accountsRoutes = require('./routes/accounts');
+const proposalsRoutes = require('./routes/proposals');
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/accounts', accountsRoutes);
+app.use('/api/proposals', proposalsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
