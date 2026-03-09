@@ -1,6 +1,9 @@
-// Load .env from backend directory (dotenv is more reliable for URIs with = and special chars)
+// Load .env then .env.local (local-only; not committed) so localhost uses separate DB from deploy
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const envPath = path.join(__dirname, '.env');
+const envLocalPath = path.join(__dirname, '.env.local');
+require('dotenv').config({ path: envPath });
+require('dotenv').config({ path: envLocalPath });
 if (!process.env.MONGODB_URI) {
   console.warn('MONGODB_URI not set. Create Buildingsystem_backend/.env with MONGODB_URI=your_mongodb_connection_string');
 } else {
