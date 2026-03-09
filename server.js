@@ -1,12 +1,10 @@
-// Load .env without requiring the dotenv package
-const fs = require('fs');
+// Load .env from backend directory (dotenv is more reliable for URIs with = and special chars)
 const path = require('path');
-const envPath = path.join(__dirname, '.env');
-if (fs.existsSync(envPath)) {
-  fs.readFileSync(envPath, 'utf8').split(/\r?\n/).forEach((line) => {
-    const m = line.match(/^\s*([^#=]+)=(.*)$/);
-    if (m) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
-  });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+if (!process.env.MONGODB_URI) {
+  console.warn('MONGODB_URI not set. Create Buildingsystem_backend/.env with MONGODB_URI=your_mongodb_connection_string');
+} else {
+  console.log('Using MONGODB_URI from .env (database:', (process.env.MONGODB_URI || '').split('/').pop().split('?')[0] || 'unknown', ')');
 }
 
 const express = require('express');

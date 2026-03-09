@@ -7,19 +7,37 @@ const { authMiddleware, requireAdmin } = require('../middleware/auth');
 function toRecord(r) {
   const d = r.toObject ? r.toObject() : r;
   return {
-    id: d.id,
-    date: d.date,
-    type: d.type,
+    id: d.id != null ? String(d.id) : (d._id ? String(d._id) : ''),
+    date: d.date || '',
+    type: d.type || 'Income',
     category: d.category || '',
     description: d.description || '',
-    amount: d.amount,
-    year: d.year,
-    month: d.month,
-    attachment: d.attachment || null,
+    amount: Number(d.amount) || 0,
+    year: Number(d.year) || 0,
+    month: Number(d.month) || 0,
+    attachment: d.attachment != null ? d.attachment : null,
   };
 }
 
 router.use(authMiddleware);
+
+// Debug: verify backend can read from DB (GET /api/accounts/db-check)
+router.get('/db-check', async (req, res) => {
+  try {
+    const recordCount = await AccountRecord.countDocuments();
+    const years = await AccountRecord.distinct('year');
+    const collectionName = AccountRecord.collection.name;
+    res.json({
+      ok: true,
+      recordCount,
+      years: (years || []).sort((a, b) => b - a),
+      collectionName,
+    });
+  } catch (err) {
+    console.error('GET /accounts/db-check error:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -35,9 +53,10 @@ router.get('/', async (req, res) => {
     }
     res.set('Cache-Control', 'no-store');
     const list = await AccountRecord.find(query).sort({ date: 1 }).lean();
+    console.log(`[accounts] GET ?year=${y}&month=${m} -> ${list.length} records`);
     res.json(list.map(toRecord));
   } catch (err) {
-    console.error(err);
+    console.error('GET /api/accounts error:', err);
     res.status(500).json({ error: 'Failed to fetch records' });
   }
 });
@@ -46,14 +65,14 @@ router.get('/years', async (req, res) => {
   try {
     const fromRecords = await AccountRecord.distinct('year');
     const extra = await ExtraYear.find({}).lean();
-    const extraYears = extra.map((e) => e.year);
-    const combined = [...new Set([...fromRecords.filter(Boolean), ...extraYears])].filter(Boolean).sort((a, b) => b - a);
-    if (combined.length === 0) {
-      return res.json([new Date().getFullYear()]);
-    }
-    res.json(combined);
+    const extraYears = (extra || []).map((e) => e.year).filter(Boolean);
+    const recordYears = Array.isArray(fromRecords) ? fromRecords.filter(Boolean) : [];
+    const combined = [...new Set([...recordYears, ...extraYears])].filter(Boolean).sort((a, b) => b - a);
+    const years = combined.length > 0 ? combined : [new Date().getFullYear()];
+    console.log('[accounts] GET /years ->', years.length, 'years:', years.slice(0, 8).join(', '));
+    res.json(years);
   } catch (err) {
-    console.error(err);
+    console.error('GET /accounts/years error:', err);
     res.status(500).json({ error: 'Failed to fetch years' });
   }
 });
