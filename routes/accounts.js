@@ -52,7 +52,11 @@ router.get('/', async (req, res) => {
       query.year = { $gte: currentYear - 2 };
     }
     res.set('Cache-Control', 'no-store');
-    const list = await AccountRecord.find(query).sort({ date: 1 }).lean();
+    // Year-only request (dashboard): skip attachment/description for speed and smaller payload
+    const yearOnly = Number.isInteger(y) && !Number.isInteger(m);
+    const projection = yearOnly ? 'date type amount year month' : null;
+    const q = projection ? AccountRecord.find(query).select(projection) : AccountRecord.find(query);
+    const list = await q.sort({ date: 1 }).lean();
     console.log(`[accounts] GET ?year=${y}&month=${m} -> ${list.length} records`);
     res.json(list.map(toRecord));
   } catch (err) {
